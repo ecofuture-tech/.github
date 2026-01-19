@@ -104,23 +104,31 @@ jobs:
         echo "✓ Package checks passed"
 
     - name: Publish to Test PyPI
-      if: ${{ inputs.publish-to-testpypi && steps.version.outputs.is_prerelease == 'true' && secrets.TEST_PYPI_TOKEN != '' }}
+      if: ${{ inputs.publish-to-testpypi && steps.version.outputs.is_prerelease == 'true' }}
       working-directory: ${{ inputs.working-directory }}
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
       run: |
+        if [ -z "$TWINE_PASSWORD" ]; then
+          echo "⚠️ TEST_PYPI_TOKEN not provided, skipping Test PyPI publish"
+          exit 0
+        fi
         echo "Publishing to Test PyPI..."
         twine upload --repository testpypi dist/*
         echo "✓ Published to Test PyPI"
     
     - name: Publish to PyPI
-      if: ${{ steps.version.outputs.is_prerelease == 'false' && secrets.PYPI_TOKEN != '' }}
+      if: ${{ steps.version.outputs.is_prerelease == 'false' }}
       working-directory: ${{ inputs.working-directory }}
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
+        if [ -z "$TWINE_PASSWORD" ]; then
+          echo "❌ PYPI_TOKEN not provided"
+          exit 1
+        fi
         echo "Publishing to PyPI..."
         twine upload dist/*
         echo "✓ Published to PyPI"
@@ -159,11 +167,9 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ "${{ job.status }}" = "success" ]; then
-          if [ "${{ steps.version.outputs.is_prerelease }}" = "true" ] && [ "${{ secrets.TEST_PYPI_TOKEN }}" != "" ]; then
+          if [ "${{ steps.version.outputs.is_prerelease }}" = "true" ]; then
             echo "📦 Published to Test PyPI: https://test.pypi.org/project/${{ steps.package.outputs.package_name }}/" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.version.outputs.is_prerelease }}" = "false" ]; then
-            echo "🚀 Published to PyPI: https://pypi.org/project/${{ steps.package.outputs.package_name }}/" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Built but not published (missing token)" >> $GITHUB_STEP_SUMMARY
+            echo "🚀 Published to PyPI: https://pypi.org/project/${{ steps.package.outputs.package_name }}/" >> $GITHUB_STEP_SUMMARY
           fi
         fi
