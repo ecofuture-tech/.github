@@ -59,7 +59,7 @@ on:
 
 jobs:
   build:
-    uses: ecofuture-tech/.github/workflows/reusable-build-publish.yml@main
+    uses: ecofuture-tech/.github/.github/workflows/reusable-build-publish.yml@main
     with:
       python-version: '3.12'  # optional
       create-github-release: true  # optional, default: true
