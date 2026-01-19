@@ -138,9 +138,9 @@ jobs:
           ## 📦 Release ${{ steps.version.outputs.version }}
           
           ### Installation
-```bash
-          uv add ${{ steps.package.outputs.package_name }}==${{ steps.version.outputs.version }}
-```
+          ```bash
+                    uv add ${{ steps.package.outputs.package_name }}==${{ steps.version.outputs.version }}
+          ```
           
           ### What's Changed
           
