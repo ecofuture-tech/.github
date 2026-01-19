@@ -59,7 +59,6 @@ jobs:
         TAG=${GITHUB_REF#refs/tags/}
         echo "tag=$TAG" >> $GITHUB_OUTPUT
         
-        # Поддерживаем разные форматы тегов:
         # v1.0.0, v1.0.0-rc1, v1.0.0-beta1, v1.0.0-alpha1
         if [[ $TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
           VERSION=${BASH_REMATCH[1]}
@@ -72,7 +71,6 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "✓ Building version: $VERSION from tag: $TAG"
         
-        # Определяем тип релиза
         if [[ $VERSION =~ (alpha|beta|rc) ]]; then
           echo "is_prerelease=true" >> $GITHUB_OUTPUT
           echo "📦 Pre-release detected"
@@ -94,7 +92,6 @@ jobs:
         python -m build
         echo "✓ Package built successfully"
         
-        # Показываем что собралось
         echo ""
         echo "Built artifacts:"
         ls -lh dist/
@@ -161,7 +158,6 @@ jobs:
         echo "- **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Показываем куда опубликовано только если успешно
         if [ "${{ job.status }}" = "success" ]; then
           if [ "${{ steps.version.outputs.is_prerelease }}" = "true" ] && [ "${{ secrets.TEST_PYPI_TOKEN }}" != "" ]; then
             echo "📦 Published to Test PyPI: https://test.pypi.org/project/${{ steps.package.outputs.package_name }}/" >> $GITHUB_STEP_SUMMARY

@@ -45,10 +45,13 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+
+    - name: Set up Python
+      run: uv python install ${{ inputs.python-version }}
 
     - name: Set up Go (for addlicense)
       if: ${{ !inputs.skip-header-check }}
@@ -65,12 +68,9 @@ jobs:
     - name: Install Python dependencies
       working-directory: ${{ inputs.working-directory }}
       run: |
-        python -m pip install --upgrade pip
-        # Установка из pyproject.toml
-        pip install -e .
-        # Установка pip-licenses если не пропускаем генерацию
+        uv sync
         if [ "${{ inputs.skip-license-generation }}" = "false" ]; then
-          pip install pip-licenses
+          uv pip install pip-licenses
         fi
 
     - name: Generate THIRD_PARTY_LICENSES.md
@@ -78,9 +78,8 @@ jobs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         echo "Generating third-party licenses..."
-        pip-licenses --format=markdown --output-file=THIRD_PARTY_LICENSES.md
+        uv run pip-licenses --format=markdown --output-file=THIRD_PARTY_LICENSES.md
         
-        # Добавляем заголовок если файл пустой или только что создан
         if [ ! -s THIRD_PARTY_LICENSES.md ] || ! grep -q "Third-Party" THIRD_PARTY_LICENSES.md; then
           {
             echo "# Third-Party Licenses"
@@ -100,7 +99,6 @@ jobs:
       run: |
         echo "Adding license headers to Python files..."
         
-        # Добавляем заголовки во все .py файлы
         addlicense \
           -c "${{ inputs.copyright-holder }}" \
           -l apache \
@@ -136,15 +134,12 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Добавляем только сгенерированные файлы
         if [ -f "THIRD_PARTY_LICENSES.md" ]; then
           git add THIRD_PARTY_LICENSES.md
         fi
         
-        # Добавляем .py файлы с обновленными заголовками
         git add '**/*.py' 2>/dev/null || true
         
-        # Проверяем, есть ли что коммитить
         if git diff --cached --quiet; then
           echo "No changes to commit"
           exit 0
