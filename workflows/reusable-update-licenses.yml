@@ -1,0 +1,166 @@
+name: Update licenses (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.12'
+      working-directory:
+        description: 'Working directory for the package'
+        required: false
+        type: string
+        default: '.'
+      skip-license-generation:
+        description: 'Skip third-party license generation'
+        required: false
+        type: boolean
+        default: false
+      skip-header-check:
+        description: 'Skip license header check/addition'
+        required: false
+        type: boolean
+        default: false
+      copyright-holder:
+        description: 'Copyright holder name'
+        required: false
+        type: string
+        default: 'EcoFuture Technology Services LLC and contributors'
+      copyright-year:
+        description: 'Copyright year'
+        required: false
+        type: string
+        default: '2026'
+
+jobs:
+  update-licenses:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Set up Go (for addlicense)
+      if: ${{ !inputs.skip-header-check }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Install addlicense
+      if: ${{ !inputs.skip-header-check }}
+      run: |
+        go install github.com/google/addlicense@latest
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+    - name: Install Python dependencies
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        python -m pip install --upgrade pip
+        # Установка из pyproject.toml
+        pip install -e .
+        # Установка pip-licenses если не пропускаем генерацию
+        if [ "${{ inputs.skip-license-generation }}" = "false" ]; then
+          pip install pip-licenses
+        fi
+
+    - name: Generate THIRD_PARTY_LICENSES.md
+      if: ${{ !inputs.skip-license-generation }}
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Generating third-party licenses..."
+        pip-licenses --format=markdown --output-file=THIRD_PARTY_LICENSES.md
+        
+        # Добавляем заголовок если файл пустой или только что создан
+        if [ ! -s THIRD_PARTY_LICENSES.md ] || ! grep -q "Third-Party" THIRD_PARTY_LICENSES.md; then
+          {
+            echo "# Third-Party Licenses"
+            echo ""
+            echo "This document contains the licenses of all third-party dependencies used in this project."
+            echo ""
+            cat THIRD_PARTY_LICENSES.md
+          } > THIRD_PARTY_LICENSES.md.tmp
+          mv THIRD_PARTY_LICENSES.md.tmp THIRD_PARTY_LICENSES.md
+        fi
+        
+        echo "✓ Generated THIRD_PARTY_LICENSES.md"
+
+    - name: Add Apache 2.0 license headers
+      if: ${{ !inputs.skip-header-check }}
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Adding license headers to Python files..."
+        
+        # Добавляем заголовки во все .py файлы
+        addlicense \
+          -c "${{ inputs.copyright-holder }}" \
+          -l apache \
+          -y "${{ inputs.copyright-year }}" \
+          -ignore "venv/**" \
+          -ignore ".venv/**" \
+          -ignore ".tox/**" \
+          -ignore "**/__pycache__/**" \
+          -ignore "**/build/**" \
+          -ignore "**/dist/**" \
+          -ignore "**/*.egg-info/**" \
+          .
+        
+        echo "✓ License headers processed"
+
+    - name: Check for changes
+      id: verify_changes
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if git diff --quiet; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "✓ No changes needed"
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "✓ Changes detected"
+          git diff --stat
+        fi
+
+    - name: Commit and push changes
+      if: steps.verify_changes.outputs.changed == 'true'
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Добавляем только сгенерированные файлы
+        if [ -f "THIRD_PARTY_LICENSES.md" ]; then
+          git add THIRD_PARTY_LICENSES.md
+        fi
+        
+        # Добавляем .py файлы с обновленными заголовками
+        git add '**/*.py' 2>/dev/null || true
+        
+        # Проверяем, есть ли что коммитить
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+          exit 0
+        fi
+        
+        git commit -m "chore: update licenses and headers [skip ci]"
+        git push
+        
+        echo "✓ Changes committed and pushed"
+
+    - name: Summary
+      run: |
+        echo "### Update licenses complete ✓" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.verify_changes.outputs.changed }}" = "true" ]; then
+          echo "- 📝 License files and headers updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ✅ All license files and headers up to date" >> $GITHUB_STEP_SUMMARY
+        fi
