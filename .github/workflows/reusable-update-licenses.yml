@@ -53,8 +53,10 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
 
-    - name: Configure git
-      run: git config core.autocrlf false
+    - name: Configure git line endings
+      run: |
+        git config core.autocrlf false
+        echo "✓ Git configured to preserve line endings"
 
     - name: Extract package name from repository
       id: package
@@ -136,13 +138,29 @@ jobs:
       id: verify_changes
       working-directory: ${{ inputs.working-directory }}
       run: |
-        if git diff --quiet; then
+        if git diff --quiet -- '**/*.py' 2>/dev/null; then
+          python_changed=false
+        else
+          python_changed=true
+          echo "✓ Python files changed"
+        fi
+        
+        if [ -f "THIRD_PARTY_LICENSES.md" ] && ! git diff --quiet -- THIRD_PARTY_LICENSES.md; then
+          licenses_changed=true
+          echo "✓ THIRD_PARTY_LICENSES.md changed"
+        else
+          licenses_changed=false
+        fi
+        
+        if [ "$python_changed" = true ] || [ "$licenses_changed" = true ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "python_changed=$python_changed" >> $GITHUB_OUTPUT
+          echo "licenses_changed=$licenses_changed" >> $GITHUB_OUTPUT
+          echo "✓ Changes detected"
+          git diff --stat -- '**/*.py' THIRD_PARTY_LICENSES.md 2>/dev/null || true
+        else
           echo "changed=false" >> $GITHUB_OUTPUT
           echo "✓ No changes needed"
-        else
-          echo "changed=true" >> $GITHUB_OUTPUT
-          echo "✓ Changes detected"
-          git diff --stat
         fi
 
     - name: Commit and push changes
@@ -158,36 +176,38 @@ jobs:
           git push "https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref_name }}
         }
         
-        licenses_file_changed() {
-          [ -f "THIRD_PARTY_LICENSES.md" ] && ! git diff --quiet "THIRD_PARTY_LICENSES.md"
-        }
+        python_changed="${{ steps.verify_changes.outputs.python_changed }}"
+        licenses_changed="${{ steps.verify_changes.outputs.licenses_changed }}"
         
-        python_files_committed=false
-        git add '**/*.py' 2>/dev/null || true
-        
-        if ! git diff --cached --quiet; then
+        if [ "$python_changed" = true ]; then
+          git add '**/*.py'
           git commit -m "chore: update license headers [skip ci]"
           push_changes
-          python_files_committed=true
           echo "✓ Python files committed and pushed"
-        else
-          echo "ℹ No Python file changes to commit"
-        fi
-        
-        if [ "$python_files_committed" = true ]; then
-          if licenses_file_changed; then
+          
+          if [ "$licenses_changed" = true ]; then
             git add THIRD_PARTY_LICENSES.md
             git commit -m "chore: update third-party licenses"
             echo "✓ THIRD_PARTY_LICENSES.md committed"
           else
             git commit --allow-empty -m "chore: license update workflow completed"
-            echo "✓ Empty commit created to finalize workflow"
+            echo "✓ Empty commit created"
           fi
           push_changes
           echo "✓ Second commit pushed"
-        elif licenses_file_changed; then
+        elif [ "$licenses_changed" = true ]; then
           git add THIRD_PARTY_LICENSES.md
           git commit -m "chore: update third-party licenses"
           push_changes
           echo "✓ THIRD_PARTY_LICENSES.md committed and pushed"
+        fi
+
+    - name: Summary
+      run: |
+        echo "### Update licenses complete ✓" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.verify_changes.outputs.changed }}" = "true" ]; then
+          echo "- 📝 License files and headers updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ✅ All license files and headers up to date" >> $GITHUB_STEP_SUMMARY
         fi
