@@ -126,7 +126,7 @@ jobs:
           
           ### Installation
           ```bash
-                    uv add ${{ steps.package.outputs.package_name }}==${{ steps.version.outputs.version }}
+          uv add ${{ steps.package.outputs.package_name }}==${{ steps.version.outputs.version }}
           ```
           
           ### What's Changed

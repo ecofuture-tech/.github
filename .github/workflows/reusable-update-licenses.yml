@@ -151,37 +151,40 @@ jobs:
         git config user.name "ecofuture-develop"
         git config user.email "ecofuture-develop@users.noreply.github.com"
         
+        push_changes() {
+          git push "https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref_name }}
+        }
+        
+        licenses_file_changed() {
+          [ -f "THIRD_PARTY_LICENSES.md" ] && ! git diff --quiet "THIRD_PARTY_LICENSES.md"
+        }
+        
+        python_files_committed=false
         git add '**/*.py' 2>/dev/null || true
         
         if ! git diff --cached --quiet; then
           git commit -m "chore: update license headers [skip ci]"
-          echo "✓ Python files committed"
+          push_changes
+          python_files_committed=true
+          echo "✓ Python files committed and pushed"
         else
           echo "ℹ No Python file changes to commit"
         fi
         
-        git push https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
-        
-        if [ -f "THIRD_PARTY_LICENSES.md" ]; then
-          if git diff --quiet THIRD_PARTY_LICENSES.md; then
-            echo "ℹ THIRD_PARTY_LICENSES.md not changed, adding empty line"
-            echo >> THIRD_PARTY_LICENSES.md
+        if [ "$python_files_committed" = true ]; then
+          if licenses_file_changed; then
+            git add THIRD_PARTY_LICENSES.md
+            git commit -m "chore: update third-party licenses"
+            echo "✓ THIRD_PARTY_LICENSES.md committed"
+          else
+            git commit --allow-empty -m "chore: license update workflow completed"
+            echo "✓ Empty commit created to finalize workflow"
           fi
-          
+          push_changes
+          echo "✓ Second commit pushed"
+        elif licenses_file_changed; then
           git add THIRD_PARTY_LICENSES.md
           git commit -m "chore: update third-party licenses"
-          echo "✓ THIRD_PARTY_LICENSES.md committed"
-        fi
-        
-        git push https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
-        echo "✓ Changes committed and pushed"
-
-    - name: Summary
-      run: |
-        echo "### Update licenses complete ✓" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if [ "${{ steps.verify_changes.outputs.changed }}" = "true" ]; then
-          echo "- 📝 License files and headers updated" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "- ✅ All license files and headers up to date" >> $GITHUB_STEP_SUMMARY
+          push_changes
+          echo "✓ THIRD_PARTY_LICENSES.md committed and pushed"
         fi
