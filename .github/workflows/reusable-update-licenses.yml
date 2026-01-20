@@ -144,20 +144,27 @@ jobs:
         git config user.name "ecofuture-develop"
         git config user.email "ecofuture-develop@users.noreply.github.com"
         
-        if [ -f "THIRD_PARTY_LICENSES.md" ]; then
-          git add THIRD_PARTY_LICENSES.md
-        fi
-        
         git add '**/*.py' 2>/dev/null || true
         
-        if git diff --cached --quiet; then
-          echo "No changes to commit"
-          exit 0
+        if ! git diff --cached --quiet; then
+          git commit -m "chore: update license headers [skip ci]"
+          echo "✓ Python files committed"
+        else
+          echo "ℹ No Python file changes to commit"
         fi
         
-        git commit -m "chore: update licenses and headers [skip ci]"
-        git push https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
+        if [ -f "THIRD_PARTY_LICENSES.md" ]; then
+          if git diff --quiet THIRD_PARTY_LICENSES.md; then
+            echo "ℹ THIRD_PARTY_LICENSES.md not changed, adding empty line"
+            echo >> THIRD_PARTY_LICENSES.md
+          fi
+          
+          git add THIRD_PARTY_LICENSES.md
+          git commit -m "chore: update third-party licenses"
+          echo "✓ THIRD_PARTY_LICENSES.md committed"
+        fi
         
+        git push https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
         echo "✓ Changes committed and pushed"
 
     - name: Summary
