@@ -85,20 +85,15 @@ jobs:
         go install github.com/google/addlicense@latest
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-    - name: Install Python dependencies
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        uv sync
-        if [ "${{ inputs.skip-license-generation }}" = "false" ]; then
-          uv pip install pip-licenses
-        fi
-
     - name: Generate THIRD_PARTY_LICENSES.md
       if: ${{ !inputs.skip-license-generation }}
       working-directory: ${{ inputs.working-directory }}
       run: |
         echo "Generating third-party licenses..."
-        uv run pip-licenses --format=markdown --ignore-packages ${{ steps.package.outputs.package_name }} --output-file=THIRD_PARTY_LICENSES.md
+        uv run --with pip-licenses pip-licenses \
+          --format=markdown \
+          --ignore-packages ${{ steps.package.outputs.package_name }} \
+          --output-file=THIRD_PARTY_LICENSES.md
         
         if [ ! -s THIRD_PARTY_LICENSES.md ] || ! grep -q "Third-Party" THIRD_PARTY_LICENSES.md; then
           {
