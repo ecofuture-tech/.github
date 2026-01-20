@@ -137,9 +137,11 @@ jobs:
     - name: Commit and push changes
       if: steps.verify_changes.outputs.changed == 'true'
       working-directory: ${{ inputs.working-directory }}
+      env:
+        WORKFLOW_LICENSE_TOKEN: ${{ secrets.WORKFLOW_LICENSE_TOKEN }}
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "ecofuture-develop"
+        git config user.email "ecofuture-develop@users.noreply.github.com"
         
         if [ -f "THIRD_PARTY_LICENSES.md" ]; then
           git add THIRD_PARTY_LICENSES.md
@@ -153,7 +155,7 @@ jobs:
         fi
         
         git commit -m "chore: update licenses and headers [skip ci]"
-        git push
+        git push https://x-access-token:${WORKFLOW_LICENSE_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
         
         echo "✓ Changes committed and pushed"
 
