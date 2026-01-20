@@ -33,6 +33,10 @@ on:
         required: false
         type: string
         default: '2026'
+    secrets:
+      WORKFLOW_LICENSE_TOKEN:
+        description: 'Token for checkout and push'
+        required: true
 
 jobs:
   update-licenses:
