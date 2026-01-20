@@ -50,6 +50,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.WORKFLOW_LICENSE_TOKEN }}
+        persist-credentials: false
         fetch-depth: 0
 
     - name: Install uv
