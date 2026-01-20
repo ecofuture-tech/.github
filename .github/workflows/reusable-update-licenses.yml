@@ -53,6 +53,9 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
 
+    - name: Configure git
+      run: git config core.autocrlf false
+
     - name: Extract package name from repository
       id: package
       run: |
