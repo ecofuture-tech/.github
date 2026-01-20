@@ -45,8 +45,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        persist-credentials: false
+        token: ${{ secrets.WORKFLOW_LICENSE_TOKEN }}
         fetch-depth: 0
 
     - name: Install uv
