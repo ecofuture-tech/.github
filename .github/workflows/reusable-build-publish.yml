@@ -99,10 +99,9 @@ jobs:
     - name: Publish to Test PyPI
       if: ${{ inputs.publish-to-testpypi && steps.version.outputs.is_prerelease == 'true' }}
       working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
       run: |
         echo "Publishing to Test PyPI..."
-        uv publish --token ${{ secrets.TEST_PYPI_TOKEN }} --publish-url https://test.pypi.org/legacy/ || echo "⚠️ TEST_PYPI_TOKEN not provided, skipping Test PyPI publish"
+        uv publish --token ${{ secrets.TEST_PYPI_TOKEN }} --publish-url https://test.pypi.org/legacy/
         echo "✓ Published to Test PyPI"
     
     - name: Publish to PyPI
